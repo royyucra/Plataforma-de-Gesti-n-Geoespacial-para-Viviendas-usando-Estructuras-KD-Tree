@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Mapa de Casas</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/estilos.css') }}">
+</head>
+
+<body>
+    <!-- PANEL LATERAL -->
+    <div id="panel-lateral">
+        <!-- Visualización -->
+        <div class="seccion">
+            <h3>🗺️ Visualización</h3>
+            <button id="btnMostrarCasas">Mostrar todas las casas</button>
+            <button id="btnOcultarCasas">Ocultar todas las casas</button>
+            <button id="btnMostrarDeuda">Mostrar casas con deudas</button>
+            <button id="btnMostrarPago">Mostrar casas con pagos completos</button>
+        </div>
+        <!-- Búsqueda -->
+        <div class="seccion">
+            <h3>🔍 Búsqueda</h3>
+            <label for="txtBuscarDireccion">Dirección:</label>
+            <input type="text" id="txtBuscarDireccion" placeholder="Ej: Jose de la Mar">
+
+            <label for="txtBuscarNumero">Número de casa:</label>
+            <input type="text" id="txtBuscarNumero" placeholder="Ej: 5">
+
+
+            <!--<label for="txtBuscarCoords">Rango de coords:</label>
+            <input type="text" id="txtBuscarCoords" placeholder="lat,lng,radio">-->
+
+            <button id="btnBuscar">Buscar</button>
+        </div>
+        <!-- Estadísticas -->
+        <h3>📊 Estadísticas</h3>
+        <button id="btnEstadisticas">Ver estadísticas 📈</button>
+
+        <!-- Gestión -->
+        <h3>⚙️ Gestión</h3>
+        <!--<button id="btnAgregarManual">Agregar casa manualmente</button>-->
+        <button id="btnAgregarCoords">Agregar por coordenadas</button>
+        <button id="btnEditarCasa">Editar casa seleccionada</button>
+        <!--<button id="btnEliminarCasa">Eliminar casa</button>-->
+
+        <!-- KDTree -->
+        <div class="seccion">
+            <h3>🌐 KDTree (casas cercanas)</h3>
+            <label for="txtCasaReferencia">Número de casa:</label>
+            <input type="text" id="txtCasaReferencia" placeholder="Ej: 5">
+            <label for="txtRadioKD">Radio (metros):</label>
+            <input type="number" id="txtRadioKD" placeholder="Ej:50">
+            <button id="btnBuscarCercanas">Buscar casas cercanas 🔍</button>
+        </div>
+
+        <div class="map-view-section">
+            <h3>Vista del mapa</h3>
+            <div class="map-view-buttons">
+                <button id="btnUrbano">Urbano</button>
+                <button id="btnSatelital">Satelital</button>
+                <button id="btnTopografico">Topográfico</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAPA LEAFLET -->
+    <div id="mapa"></div>
+    <!-- Panel de Estadísticas -->
+    <div id="estadisticasPanel" style="display: none;">
+        <h2>📈 Estadísticas de Pagos</h2>
+
+        <div class="indicadores">
+            <div class="card">🏠 Total de casas: <span id="totalCasas">0</span></div>
+            <div class="card">✅ Pagaron: <span id="casasPagadas">0</span></div>
+            <div class="card">❌ Pendientes: <span id="casasNoPagadas">0</span></div>
+        </div>
+
+        <div class="graficos">
+            <canvas id="graficoPizza"></canvas>
+            <canvas id="graficoBarras"></canvas>
+        </div>
+
+        <button id="btnPDF" class="boton-pdf">📄 Generar PDF</button>
+        <button id="btnVolverMapa" class="boton-pdf">Volver</button>
+    </div>
+
+    <!-- Modal para agregar casa -->
+    <div id="modalCasa" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>🏠 Nueva Casa</h3>
+            <form id="formCasa">
+                <label>Propietario:</label>
+                <input type="text" id="propietario" required>
+
+                <label>Dirección (Calle):</label>
+                <input type="text" id="direccion" required>
+
+                <label>Número:</label>
+                <input type="number" id="numero" required>
+
+                <label>Valor catastral:</label>
+                <input type="number" id="valor_catastral" required>
+
+                <label>Impuesto anual:</label>
+                <input type="number" id="impuesto_anual" required>
+
+                <label>Pagos:</label><br>
+                <input type="checkbox" id="pago2020"> 2020
+                <input type="checkbox" id="pago2021"> 2021
+                <input type="checkbox" id="pago2022"> 2022
+                <input type="checkbox" id="pago2023"> 2023
+                <input type="checkbox" id="pago2024"> 2024
+                <input type="checkbox" id="pago2025"> 2025
+                <br><br>
+
+                <button type="submit">Guardar</button>
+                <button type="button" id="cancelar">Cancelar</button>
+            </form>
+        </div>
+    </div>
+    <!-- Modal para agregar casa manualmente por coordenadas -->
+    <div id="modalCasaCoords" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>🏠 Nueva Casa (por coordenadas)</h3>
+            <form id="formCasaCoords">
+                <label>Propietario:</label>
+                <input type="text" id="propietarioCoords" required>
+
+                <label>Dirección (Calle):</label>
+                <input type="text" id="direccionCoords" required>
+
+                <label>Número:</label>
+                <input type="number" id="numeroCoords" required>
+
+                <label>Valor catastral:</label>
+                <input type="number" id="valor_catastralCoords" required>
+
+                <label>Impuesto anual:</label>
+                <input type="number" id="impuesto_anualCoords" required>
+
+                <label>Latitud:</label>
+                <input type="number" step="any" id="latitudCoords" required>
+
+                <label>Longitud:</label>
+                <input type="number" step="any" id="longitudCoords" required>
+
+                <label>Pagos:</label><br>
+                <input type="checkbox" id="pago2020Coords"> 2020
+                <input type="checkbox" id="pago2021Coords"> 2021
+                <input type="checkbox" id="pago2022Coords"> 2022
+                <input type="checkbox" id="pago2023Coords"> 2023
+                <input type="checkbox" id="pago2024Coords"> 2024
+                <input type="checkbox" id="pago2025Coords"> 2025
+                <br><br>
+
+                <button type="submit">Guardar</button>
+                <button type="button" id="cancelarCoords">Cancelar</button>
+            </form>
+        </div>
+    </div>
+    <div id="modalEditarCasa" class="modal">
+        <div class="modal-content">
+            <span class="closeEditar">&times;</span>
+            <h2>Editar Casa</h2>
+
+            <!-- Buscar por ID o propietario -->
+            <div>
+                <label for="buscarPropietario">Buscar por propietario:</label>
+                <input type="text" id="buscarPropietario" placeholder="Ej: Propietario 1">
+
+                <label for="buscarId">Buscar por número de casa (ID):</label>
+                <input type="number" id="buscarId" placeholder="Ej: 1">
+                <button id="btnBuscarCasa">Buscar</button>
+            </div>
+
+            <!-- Formulario de edición -->
+            <form id="formEditarCasa" style="display:none; margin-top: 10px;">
+                <label for="nombre">Nombre:</label>
+                <input type="text" id="nombre" name="nombre">
+
+                <label for="calle">Calle:</label>
+                <input type="text" id="calle" name="calle">
+
+                <label for="numero">Número:</label>
+                <input type="number" id="numero" name="numero">
+
+                <label for="barrio">Barrio:</label>
+                <input type="text" id="barrio" name="barrio">
+
+                <label for="distrito">Distrito:</label>
+                <input type="text" id="distrito" name="distrito">
+
+                <label for="latitud">Latitud:</label>
+                <input type="number" step="any" id="latitud" name="latitud">
+
+                <label for="longitud">Longitud:</label>
+                <input type="number" step="any" id="longitud" name="longitud">
+
+                <label for="propietario">Propietario:</label>
+                <input type="text" id="propietario" name="propietario">
+
+                <label for="valor_catastral">Valor Catastral:</label>
+                <input type="number" id="valor_catastral" name="valor_catastral">
+
+                <label for="impuesto_anual">Impuesto Anual:</label>
+                <input type="number" id="impuesto_anual" name="impuesto_anual">
+
+                <!-- Pagos: Podría ser dinámico por año -->
+                <div id="pagosContainer"></div>
+
+                <!-- Botones -->
+                <div style="margin-top:15px;">
+                    <button type="submit" style="background-color:green; color:white;">Guardar</button>
+                    <button type="button" id="cancelarEditar">Cancelar</button>
+                    <button type="button" id="eliminarCasa" style="background-color:red; color:white;">Eliminar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="{{ url_for('static', filename='js/mapa.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+</body>
+
+</html>
